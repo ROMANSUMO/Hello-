@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  postgres:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: root
+      POSTGRES_USER: root
+      POSTGRES_DB: ttn_lorawan_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  stack:
+    image: thethingsnetwork/lorawan-stack
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - postgres
+    entrypoint: ttn-lw-stack -c /config/ttn-lw-stack-docker.yml
+    command: start
+    environment:
+      TTN_LW_REDIS_ADDRESS: redis:6379
+      TTN_LW_IS_DATABASE_URI: postgres://root:root@postgres:5432/ttn_lorawan_dev?sslmode=disable
+      TTN_LW_BLOB_LOCAL_DIRECTORY: /srv/ttn-lorawan/public/blob
+    volumes:
+      - ./blob:/srv/ttn-lorawan/public/blob
+      - ./config/stack:/config:ro
+    ports:
+      - "1885:1885"
+      - "8885:8885"
+      - "1700:1700/udp"
